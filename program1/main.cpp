@@ -73,11 +73,46 @@ float calculateArea (Vertex a, Vertex b, Vertex c) {
     return ((b.x - a.x) * (c.y - a.y)) - ((c.x - a.x) * (b.y - a.y));
 }
 
+float **makeArray(int width, int height) {
+   float **arr = new float *[width];
+   for (int i = 0; i < width; ++i) {
+      arr[i] = new float[height];
+   }
+   
+   return arr;
+}
+
+void deleteArray  (float **arr, int width, int height) {
+   for (int i = 0; i < width; ++i) {
+      delete [] arr[i];
+   }
+   delete [] arr;
+}
+
+
+int worldToPixelsX(float x, int width, int height) {
+   if (width >= height) {
+      x *= ((float)width / height);
+      
+      float d = (width - 1.0) / 2.0;
+      float c = (width - 1.0) * ( (float)height / (2.0 * width));
+      return c * x + d;
+   } else {
+      return ((width - 1.0) / 2.0) * x + ((width - 1.0) / 2.0);
+   }  
+}
+
+int worldToPixelsY(float y, int width, int height) {
+   if (width >= height) {
+      return ((height - 1.0) / 2.0) * y + ((height - 1.0) / 2.0);
+   } else {
+      y *= ((float)height / width);
+      return (height - 1.0) * (width / (2.0 * height)) * y + ((height - 1.0) / 2.0);
+   }
+}
+
 std::vector<Vertex> turnVerticesTo2d(std::vector<float> vertices, int width, int height) {
    std::vector<Vertex> ret;
-   
-   float midWidth = (float)width / 2.0;
-   float midHeight = (float)height / 2.0;
    
    for (size_t v = 0; v < vertices.size() / 3; v++) {
       float x = vertices[3 * v];
@@ -85,8 +120,8 @@ std::vector<Vertex> turnVerticesTo2d(std::vector<float> vertices, int width, int
       float z = vertices[3 * v + 2];
       
       Vertex vertex;
-      vertex.x = x * midWidth + midWidth;
-      vertex.y = y * midHeight + midHeight;
+      vertex.x = worldToPixelsX(x, width, height);
+      vertex.y = worldToPixelsY(y, width, height);
       vertex.z = z;
       
       //printf("New vertices: %f, %f, %f\n", vertex.x, vertex.y, vertex.z);
@@ -119,16 +154,83 @@ std::vector<Triangle> assignVerticesToFaces(std::vector<Vertex> vertices, std::v
 }
 
 
+float computeZDepth(float d) {
+   return 127.0 * d + 127.0;
+}
+
+bool rasterize(Triangle tri, int i, int j, float **depth) {
+   float areaC = ((tri.vrtx_b.x - tri.vrtx_a.x) * (j - tri.vrtx_a.y)) - ((tri.vrtx_b.y - tri.vrtx_a.y) * (i - tri.vrtx_a.x));
+   float areaB = ((tri.vrtx_a.x - tri.vrtx_c.x) * (j - tri.vrtx_c.y)) - ((tri.vrtx_a.y - tri.vrtx_c.y) * (i - tri.vrtx_c.x));
+   float gamma = areaC / tri.area;
+   float beta = areaB / tri.area;
+   float alpha = 1 - beta - gamma;
+   
+   if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+      float d = computeZDepth(alpha * tri.vrtx_a.z + beta * tri.vrtx_b.z + gamma * tri.vrtx_c.z);
+      if (depth[i][j] < d && d < 256) {
+            depth[i][j] = d;
+      }
+      
+      return true;
+   }
+   
+   return false;
+}
+
+color_t computeColor(int i, int j, int width, float **depth, int method) {
+   color_t clr;
+   clr.r = 0;
+   clr.g = 0;
+   clr.b = 0;
+   
+   if (isinf(depth[i][j]))
+      return clr;
+   
+   if (method == 2) {
+      clr.r = (i / (float) width);
+      clr.g = clr.r;
+      clr.b = 1 - clr.r;
+   } else {
+      clr.r = depth[i][j];
+      clr.g = 0;
+      clr.b = 0;
+   }
+   
+   return clr;
+}
+
+
+
 /*
  * Main function
  */
 
 int main(int argc, const char* argv[]) {
-   bool DEBUG = true;
+   bool DEBUG = false;
    std::string inputfile;
    
    if (argc != 2) {
       std::cout << "Program requires a file as an argument" << std::endl;
+      std::cout << "Running world to pixel tests instead" << std:: endl;
+      
+      std::cout << "Enter an x-coordinate: ";
+      float x;
+      scanf("%f", &x);
+      
+      std::cout << "Enter a width: ";
+      int width;
+      scanf("%d", &width);
+      
+      std::cout << "Enter a height: ";
+      int height;
+      scanf("%d", &height);
+      
+      std::cout << "Testing with x: " << x << " width: " << width << " height: " << height << std::endl;
+      
+      int pixel = worldToPixelsX(x, width, height);
+      
+      std::cout << "The result is: " << pixel << std::endl;
+      
       exit(1);
    }
    
@@ -145,67 +247,87 @@ int main(int argc, const char* argv[]) {
 		exit(1);
 	}
 	
-	int width, height;
+	int width, height, method;
 	
 	std::cout << "Enter width: ";
 	scanf("%d", &width);
 	std::cout << "Enter height: ";
 	scanf("%d", &height);
-	
-	// make a color
-	color_t clr;
-	clr.r = 0.5;
-	clr.g = 0.5;
-	clr.b = 0.9;
+	std::cout << "Enter method of coloring (1 for depth, 2 for x-axis): ";
+	scanf("%d", &method);
 	
  	// make a 400x400 image (allocates buffer on the heap)
 	Image img(width, height);
+	
+	if (width < height) {
+	   height = width;
+	} else {
+	   width = height;
+	}
+	
+	float **depth = makeArray(width, height);
+	for (int i = 0; i < width; ++i) {
+	   for (int j = 0; j < height; ++j) {
+	      depth[i][j] = -1 * std::numeric_limits<float>::infinity();
+	   }
+	}
 
    if (DEBUG) {
       std::cout << "# of shapes: " << shapes.size() << std::endl;
       for (size_t i = 0; i < shapes.size(); i++) {
          tinyobj::shape_t currShape = shapes[i];
+         
          printf("Size of shape[%ld].indices: %ld\n", i, currShape.mesh.indices.size());
+         
          assert((currShape.mesh.indices.size() % 3) == 0);
-      
+   
          for (size_t f = 0; f < currShape.mesh.indices.size() / 3; f++) {
             printf("  triangle[%ld] = %d, %d, %d\n", f, currShape.mesh.indices[3*f+0], currShape.mesh.indices[3*f+1], currShape.mesh.indices[3*f+2]);
          }
 
          printf("shape[%ld].vertices: %ld\n", i, currShape.mesh.positions.size());
+         
          assert((currShape.mesh.positions.size() % 3) == 0);
+      
          for (size_t v = 0; v < currShape.mesh.positions.size() / 3; v++) {
             printf("  vertex[%ld] = (%f, %f, %f)\n", v,
                currShape.mesh.positions[3*v+0],
                currShape.mesh.positions[3*v+1],
                currShape.mesh.positions[3*v+2]);
          }
+      }
+   }
+   
+      
+   for (size_t i = 0; i < shapes.size(); i++) {
+      tinyobj::shape_t currShape = shapes[i];
+
+      assert((currShape.mesh.indices.size() % 3) == 0);
+      assert((currShape.mesh.positions.size() % 3) == 0);
+      
+      std::vector<Vertex> vertices = turnVerticesTo2d(currShape.mesh.positions, width, height);
+      std::vector<Triangle> triangles = assignVerticesToFaces(vertices, currShape.mesh.indices);
+      
+      for (int tri_num = 0; tri_num < triangles.size(); ++tri_num) {
+         Triangle currTri = triangles[tri_num];
          
-         std::vector<Vertex> vertices = turnVerticesTo2d(currShape.mesh.positions, width, height);
-         
-         std::vector<Triangle> triangles = assignVerticesToFaces(vertices, currShape.mesh.indices);
-         
-         for (int tri_num = 0; tri_num < triangles.size(); ++tri_num) {
-            Triangle currTri = triangles[tri_num];
-            for (int i = currTri.bounds.minX; i < currTri.bounds.maxX; ++i) {
-               for (int j = currTri.bounds.minY; j < currTri.bounds.maxY; ++j) {
-                  img.pixel(i, j, clr);
-               }
+         for (int i = currTri.bounds.minX; i < currTri.bounds.maxX; ++i) {
+            for (int j = currTri.bounds.minY; j < currTri.bounds.maxY; ++j) {
+               
+               rasterize(currTri, i, j, depth);
+               
             }
          }
-         
       }
 	}
-
 	
-	/*
-	// set a square to be the color above
-	for (int i=50; i < 100; i++) {
-		for (int j=50; j < 100; j++) {
-			img.pixel(i, j, clr);
-		}
+	for (int i = 0; i < width; ++i) {
+	   for (int j = 0; j < height; ++j) {
+	      img.pixel(i, j, computeColor(i, j, width, depth, method));
+	   }
 	}
-	*/
+	
+	deleteArray(depth, width, height);
 	
 	// write the targa file to disk
 	// true to scale to max color, false to clamp to 1.0
