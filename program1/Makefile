@@ -1,5 +1,5 @@
 all:
-	g++ *.cpp *.cc *.h
+	g++ *.cpp *.cc
 
 clean:
-	rm -rf *.gch a.out
+	rm -rf *.gch a.out awesome.tga

@@ -5,6 +5,8 @@
 #include "tiny_obj_loader.h"
 #include "Image.h"
 
+#define DEBUG false
+
 /*
  * Struct definitions
  */
@@ -69,7 +71,7 @@ void updateBoundingBox(Triangle *tri) {
       tri->bounds.maxY = tri->vrtx_c.y;
 }
 
-float calculateArea (Vertex a, Vertex b, Vertex c) {
+float calculateArea(Vertex a, Vertex b, Vertex c) {
     return ((b.x - a.x) * (c.y - a.y)) - ((c.x - a.x) * (b.y - a.y));
 }
 
@@ -82,7 +84,7 @@ float **makeArray(int width, int height) {
    return arr;
 }
 
-void deleteArray  (float **arr, int width, int height) {
+void deleteArray(float **arr, int width, int height) {
    for (int i = 0; i < width; ++i) {
       delete [] arr[i];
    }
@@ -94,9 +96,7 @@ int worldToPixelsX(float x, int width, int height) {
    if (width >= height) {
       x *= ((float)width / height);
       
-      float d = (width - 1.0) / 2.0;
-      float c = (width - 1.0) * ( (float)height / (2.0 * width));
-      return c * x + d;
+      return (width - 1.0) * ( (float)height / (2.0 * width)) * x + ((width - 1.0) / 2.0);
    } else {
       return ((width - 1.0) / 2.0) * x + ((width - 1.0) / 2.0);
    }  
@@ -124,7 +124,8 @@ std::vector<Vertex> turnVerticesTo2d(std::vector<float> vertices, int width, int
       vertex.y = worldToPixelsY(y, width, height);
       vertex.z = z;
       
-      //printf("New vertices: %f, %f, %f\n", vertex.x, vertex.y, vertex.z);
+      if (DEBUG)
+         printf("New vertices: %f, %f, %f\n", vertex.x, vertex.y, vertex.z);
       
       ret.push_back(vertex);
    }
@@ -165,13 +166,14 @@ bool rasterize(Triangle tri, int i, int j, float **depth) {
    float beta = areaB / tri.area;
    float alpha = 1 - beta - gamma;
    
-   if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+   if (alpha >= 0 && beta >= 0 && gamma >= 0 && alpha <= 1 && beta <= 1 && gamma <= 1) {
       float d = computeZDepth(alpha * tri.vrtx_a.z + beta * tri.vrtx_b.z + gamma * tri.vrtx_c.z);
-      if (depth[i][j] < d && d < 256) {
-            depth[i][j] = d;
-      }
       
-      return true;
+      if (depth[i][j] < d && d <= 256) {
+            depth[i][j] = d;
+            
+            return true;
+      }
    }
    
    return false;
@@ -188,7 +190,7 @@ color_t computeColor(int i, int j, int width, float **depth, int method) {
    
    if (method == 2) {
       clr.r = (i / (float) width);
-      clr.g = clr.r;
+      clr.g = 0;
       clr.b = 1 - clr.r;
    } else {
       clr.r = depth[i][j];
@@ -200,36 +202,102 @@ color_t computeColor(int i, int j, int width, float **depth, int method) {
 }
 
 
+//Given a vector of shapes which has already been read from an obj file
+// resize all vertices to the range [-1, 1]
+void resize_obj(std::vector<tinyobj::shape_t> &shapes){
+    float minX, minY, minZ;
+    float maxX, maxY, maxZ;
+    float scaleX, scaleY, scaleZ;
+    float shiftX, shiftY, shiftZ;
+    float epsilon = 0.001;
+
+minX = minY = minZ = 1.1754E+38F;
+maxX = maxY = maxZ = -1.1754E+38F;
+
+    //Go through all vertices to determine min and max of each dimension
+    for (size_t i = 0; i < shapes.size(); i++) {
+        for (size_t v = 0; v < shapes[i].mesh.positions.size() / 3; v++) {
+            if(shapes[i].mesh.positions[3*v+0] < minX) minX = shapes[i].mesh.positions[3*v+0];
+            if(shapes[i].mesh.positions[3*v+0] > maxX) maxX = shapes[i].mesh.positions[3*v+0];
+
+            if(shapes[i].mesh.positions[3*v+1] < minY) minY = shapes[i].mesh.positions[3*v+1];
+            if(shapes[i].mesh.positions[3*v+1] > maxY) maxY = shapes[i].mesh.positions[3*v+1];
+
+            if(shapes[i].mesh.positions[3*v+2] < minZ) minZ = shapes[i].mesh.positions[3*v+2];
+            if(shapes[i].mesh.positions[3*v+2] > maxZ) maxZ = shapes[i].mesh.positions[3*v+2];
+}
+}
+
+    //From min and max compute necessary scale and shift for each dimension
+   float maxExtent, xExtent, yExtent, zExtent;
+xExtent = maxX-minX;
+yExtent = maxY-minY;
+zExtent = maxZ-minZ;
+   if (xExtent >= yExtent && xExtent >= zExtent) {
+maxExtent = xExtent;
+}
+   if (yExtent >= xExtent && yExtent >= zExtent) {
+maxExtent = yExtent;
+}
+   if (zExtent >= xExtent && zExtent >= yExtent) {
+maxExtent = zExtent;
+}
+scaleX = 2.0 /maxExtent;
+shiftX = minX + (xExtent/ 2.0);
+scaleY = 2.0 / maxExtent;
+shiftY = minY + (yExtent / 2.0);
+scaleZ = 2.0/ maxExtent;
+shiftZ = minZ + (zExtent)/2.0;
+
+    //Go through all verticies shift and scale them
+    for (size_t i = 0; i < shapes.size(); i++) {
+        for (size_t v = 0; v < shapes[i].mesh.positions.size() / 3; v++) {
+shapes[i].mesh.positions[3*v+0] = (shapes[i].mesh.positions[3*v+0] - shiftX) * scaleX;
+assert(shapes[i].mesh.positions[3*v+0] >= -1.0 - epsilon);
+assert(shapes[i].mesh.positions[3*v+0] <= 1.0 + epsilon);
+shapes[i].mesh.positions[3*v+1] = (shapes[i].mesh.positions[3*v+1] - shiftY) * scaleY;
+assert(shapes[i].mesh.positions[3*v+1] >= -1.0 - epsilon);
+assert(shapes[i].mesh.positions[3*v+1] <= 1.0 + epsilon);
+shapes[i].mesh.positions[3*v+2] = (shapes[i].mesh.positions[3*v+2] - shiftZ) * scaleZ;
+assert(shapes[i].mesh.positions[3*v+2] >= -1.0 - epsilon);
+assert(shapes[i].mesh.positions[3*v+2] <= 1.0 + epsilon);
+}
+}
+}
+
+
 
 /*
  * Main function
  */
 
 int main(int argc, const char* argv[]) {
-   bool DEBUG = false;
    std::string inputfile;
    
    if (argc != 2) {
-      std::cout << "Program requires a file as an argument" << std::endl;
-      std::cout << "Running world to pixel tests instead" << std:: endl;
+      if (DEBUG) {
+         std::cout << "No input file || Running world to pixel tests instead" << std:: endl;
       
-      std::cout << "Enter an x-coordinate: ";
-      float x;
-      scanf("%f", &x);
+         std::cout << "Enter an x-coordinate: ";
+         float x;
+         scanf("%f", &x);
       
-      std::cout << "Enter a width: ";
-      int width;
-      scanf("%d", &width);
+         std::cout << "Enter a width: ";
+         int width;
+         scanf("%d", &width);
       
-      std::cout << "Enter a height: ";
-      int height;
-      scanf("%d", &height);
+         std::cout << "Enter a height: ";
+         int height;
+         scanf("%d", &height);
       
-      std::cout << "Testing with x: " << x << " width: " << width << " height: " << height << std::endl;
+         std::cout << "Testing with x: " << x << " width: " << width << " height: " << height << std::endl;
       
-      int pixel = worldToPixelsX(x, width, height);
+         int pixel = worldToPixelsX(x, width, height);
       
-      std::cout << "The result is: " << pixel << std::endl;
+         std::cout << "The result is: " << pixel << std::endl;
+      } else {
+         std::cout << "Program requires a file as an argument" << std::endl;
+      }
       
       exit(1);
    }
@@ -241,6 +309,7 @@ int main(int argc, const char* argv[]) {
 	std::vector<tinyobj::material_t> materials;
 
 	std::string err = tinyobj::LoadObj(shapes, materials, inputfile.c_str());
+	resize_obj(shapes);
 
 	if (!err.empty()) {
 		std::cerr << err << std::endl;
@@ -264,6 +333,7 @@ int main(int argc, const char* argv[]) {
 	} else {
 	   width = height;
 	}
+	
 	
 	float **depth = makeArray(width, height);
 	for (int i = 0; i < width; ++i) {
@@ -311,20 +381,17 @@ int main(int argc, const char* argv[]) {
       for (int tri_num = 0; tri_num < triangles.size(); ++tri_num) {
          Triangle currTri = triangles[tri_num];
          
-         for (int i = currTri.bounds.minX; i < currTri.bounds.maxX; ++i) {
-            for (int j = currTri.bounds.minY; j < currTri.bounds.maxY; ++j) {
+         for (int i = currTri.bounds.minX; i <= currTri.bounds.maxX; ++i) {
+            for (int j = currTri.bounds.minY; j <= currTri.bounds.maxY; ++j) {
                
-               rasterize(currTri, i, j, depth);
+               if (rasterize(currTri, i, j, depth)) {
+                  img.pixel(i, j, computeColor(i, j, width, depth, method));
+               }
                
             }
          }
+         
       }
-	}
-	
-	for (int i = 0; i < width; ++i) {
-	   for (int j = 0; j < height; ++j) {
-	      img.pixel(i, j, computeColor(i, j, width, depth, method));
-	   }
 	}
 	
 	deleteArray(depth, width, height);

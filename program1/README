@@ -1,0 +1,14 @@
+To run this program
+
+$ make
+$ ./a.out <obj file>
+
+Then follow the prompts given to enter width, height, and coloring method
+
+To clean up
+
+$ make clean
+
+
+
+As for program features, everything is working except the coloring of depth.  For some reason, black pixels are appearing in the bunny.  This does not show up when coloring by x.  This probably means there is something wrong with my depth buffer.
