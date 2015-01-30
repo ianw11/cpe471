@@ -1,0 +1,84 @@
+#version 120
+
+// Input vertex data, different for all executions of this shader.
+attribute vec3 vertexPosition_modelspace;
+
+attribute vec3 background;
+uniform int isBackground;
+
+
+// vertexColor was created in the cpp code, and the cpp has a handle to this
+attribute vec3 vertexColor;
+
+// fragmentColor gets passed along to SimpleFragmentShader
+// varying makes this a 'global' for the pipeline
+varying vec3 fragmentColor;
+
+varying float distFromStart;
+varying float distFromCenterFrag;
+
+varying float distFromRadiusFrag;
+
+// Scale of the window, say if width>height or whatever
+uniform vec2 uWinScale;
+
+// Time to move the points around
+uniform float time;
+uniform float radius;
+
+uniform vec2 v_winSize;
+
+
+void main() {
+   
+   if (isBackground == 1) {
+      gl_Position = vec4(background.x, background.y, background.z, 1.0);
+   }
+   else {
+      
+      float alteredRadius = radius;
+      vec2 center = vec2(0,0);
+      
+      // Actually setting the position
+      
+      float x = vertexPosition_modelspace.x * uWinScale.x;
+      
+      float y = vertexPosition_modelspace.y * uWinScale.y;
+      
+      float z = vertexPosition_modelspace.z;
+      
+      vec2 vector = vec2(x, y);
+      
+      
+      float distFromCenter = distance(center, vector);
+      float distFromRadius = abs(distFromCenter - alteredRadius);
+      distFromRadiusFrag = distFromRadius;
+      
+      vec2 delta = vec2(x - x * time, y - y * time);
+      float distFromOrig = distance(delta, vector);
+      
+      float coef = distFromOrig / distFromRadius;
+      
+      vec2 renderPosition;
+      
+      float theta = atan(y/x);
+      if (x < 0)
+         alteredRadius *= -1;
+      
+      if (coef > 1 || distFromCenter < radius) {
+         renderPosition = vec2(alteredRadius * cos(theta), alteredRadius * sin(theta));
+      } else {
+         renderPosition = vec2(delta.x, delta.y);
+      }
+      
+      // Set position
+      gl_Position = vec4(renderPosition.x, renderPosition.y, z, 1.0);
+      
+      // Setting the color by passing it on to SimpleFragmentShader
+      fragmentColor = vertexColor;
+      
+      distFromStart = distFromOrig;
+      distFromCenterFrag = distFromCenter;
+   }
+}
+

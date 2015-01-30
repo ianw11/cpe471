@@ -1,0 +1,28 @@
+#version 120
+varying vec3 fragmentColor;
+
+uniform vec2 winSize;
+
+uniform vec2 winCenter;
+
+//varying vec2 curr;
+
+void main()
+{
+   float limit = min(winSize.x / 2.0, winSize.y / 2.0);
+   vec2 curr = vec2(gl_FragCoord.x, gl_FragCoord.y);
+   
+   if (distance(winCenter, curr) < 20 ) {
+      discard;
+   } else {
+      if (gl_FragCoord.y > (winSize.y / 2.0) ) {
+         gl_FragColor = vec4(0,0,0, 1.0);
+      } else {
+         float dist = distance(winCenter, curr);
+         float coeff = (dist / limit);
+         gl_FragColor = vec4(fragmentColor.x + coeff * (1-fragmentColor.x), fragmentColor.y + coeff * (1-fragmentColor.y), fragmentColor.z + coeff * (1-fragmentColor.z), 1.0 );
+         //gl_FragColor = vec4(fragmentColor.x , fragmentColor.y , fragmentColor.z, 1.0 );
+      }
+   }
+
+}

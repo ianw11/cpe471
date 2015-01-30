@@ -1,0 +1,62 @@
+#version 120
+varying vec3 fragmentColor;
+
+varying float distFromStart;
+varying float distFromRadiusFrag;
+
+uniform int isBackground;
+
+uniform vec2 winSize;
+
+uniform float p_radius;
+
+//varying vec2 curr;
+
+void main()
+{
+   vec2 winCenter = vec2(winSize.x / 2.0, winSize.y / 2.0);
+   float lo = min(winSize.x, winSize.y);
+   
+   if (isBackground == 1) {
+      float backCoef = 1.0 - (distance(winCenter, vec2(gl_FragCoord.x, gl_FragCoord.y)) / lo);
+      
+      gl_FragColor = vec4(
+                           (255.0 / 255.0) * backCoef,
+                           (255.0 / 255.0) * backCoef,
+                           0.0 / 255.0,
+                           1.0f);
+   } else {
+      
+      float transCoef = min(1.0, abs(distFromStart / distFromRadiusFrag));
+      
+      if ( distance(winCenter, vec2(gl_FragCoord.x, gl_FragCoord.y)) < p_radius ) {
+         // Inside the center circle
+         gl_FragColor = vec4((178.0 / 255.0),
+                             ( 61.0 / 255.0),
+                             (  0.0 / 255.0),
+                             transCoef);
+      } else {
+         // Moving in to the center circle
+         gl_FragColor = vec4(transCoef * fragmentColor.x, transCoef * fragmentColor.y, transCoef * fragmentColor.z, transCoef);
+      }
+   }
+   /*
+   float limit = min(winSize.x / 2.0, winSize.y / 2.0);
+   vec2 curr = vec2(gl_FragCoord.x, gl_FragCoord.y);
+   
+   if (distance(winCenter, curr) < 20) {
+      // Creates the hole in the center
+      discard;
+   } else {
+      if (gl_FragCoord.y > (winSize.y / 2.0) ) {
+         // If the y is greater than half the screen height, go black
+         gl_FragColor = vec4(0,0,0, 1.0);
+      } else {
+         float dist = distance(winCenter, curr);
+         float coeff = (dist / limit);
+         gl_FragColor = vec4(fragmentColor.x + coeff * (1-fragmentColor.x), fragmentColor.y + coeff * (1-fragmentColor.y), fragmentColor.z + coeff * (1-fragmentColor.z), 1.0 );
+      }
+   }
+    */
+
+}

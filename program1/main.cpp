@@ -12,18 +12,18 @@
  */
  
 typedef struct {
-   float x, y, z;
+   double x, y, z;
 } Vertex;
 
 typedef struct {
-   float minX, maxX, minY, maxY;
+   double minX, maxX, minY, maxY;
 } BoundingBox;
 
 typedef struct {
    Vertex vrtx_a, vrtx_b, vrtx_c;
    color_t clr_a, clr_b, clr_c;
    BoundingBox bounds;
-   float area;
+   double area;
 } Triangle;
 
 
@@ -75,16 +75,16 @@ float calculateArea(Vertex a, Vertex b, Vertex c) {
     return ((b.x - a.x) * (c.y - a.y)) - ((c.x - a.x) * (b.y - a.y));
 }
 
-float **makeArray(int width, int height) {
-   float **arr = new float *[width];
+double **makeArray(int width, int height) {
+   double **arr = new double *[width];
    for (int i = 0; i < width; ++i) {
-      arr[i] = new float[height];
+      arr[i] = new double[height];
    }
    
    return arr;
 }
 
-void deleteArray(float **arr, int width, int height) {
+void deleteArray(double **arr, int width, int height) {
    for (int i = 0; i < width; ++i) {
       delete [] arr[i];
    }
@@ -92,21 +92,21 @@ void deleteArray(float **arr, int width, int height) {
 }
 
 
-int worldToPixelsX(float x, int width, int height) {
+int worldToPixelsX(double x, int width, int height) {
    if (width >= height) {
-      x *= ((float)width / height);
+      x *= ((double)width / height);
       
-      return (width - 1.0) * ( (float)height / (2.0 * width)) * x + ((width - 1.0) / 2.0);
+      return (width - 1.0) * ( (double)height / (2.0 * width)) * x + ((width - 1.0) / 2.0);
    } else {
       return ((width - 1.0) / 2.0) * x + ((width - 1.0) / 2.0);
    }  
 }
 
-int worldToPixelsY(float y, int width, int height) {
+int worldToPixelsY(double y, int width, int height) {
    if (width >= height) {
       return ((height - 1.0) / 2.0) * y + ((height - 1.0) / 2.0);
    } else {
-      y *= ((float)height / width);
+      y *= ((double)height / width);
       return (height - 1.0) * (width / (2.0 * height)) * y + ((height - 1.0) / 2.0);
    }
 }
@@ -115,9 +115,9 @@ std::vector<Vertex> turnVerticesTo2d(std::vector<float> vertices, int width, int
    std::vector<Vertex> ret;
    
    for (size_t v = 0; v < vertices.size() / 3; v++) {
-      float x = vertices[3 * v];
-      float y = vertices[3 * v + 1];
-      float z = vertices[3 * v + 2];
+      double x = vertices[3 * v];
+      double y = vertices[3 * v + 1];
+      double z = vertices[3 * v + 2];
       
       Vertex vertex;
       vertex.x = worldToPixelsX(x, width, height);
@@ -155,21 +155,21 @@ std::vector<Triangle> assignVerticesToFaces(std::vector<Vertex> vertices, std::v
 }
 
 
-float computeZDepth(float d) {
+double computeZDepth(double d) {
    return 127.0 * d + 127.0;
 }
 
-bool rasterize(Triangle tri, int i, int j, float **depth) {
-   float areaC = ((tri.vrtx_b.x - tri.vrtx_a.x) * (j - tri.vrtx_a.y)) - ((tri.vrtx_b.y - tri.vrtx_a.y) * (i - tri.vrtx_a.x));
-   float areaB = ((tri.vrtx_a.x - tri.vrtx_c.x) * (j - tri.vrtx_c.y)) - ((tri.vrtx_a.y - tri.vrtx_c.y) * (i - tri.vrtx_c.x));
-   float gamma = areaC / tri.area;
-   float beta = areaB / tri.area;
-   float alpha = 1 - beta - gamma;
+bool rasterize(Triangle tri, int i, int j, double **depth) {
+   double areaC = ((tri.vrtx_b.x - tri.vrtx_a.x) * (j - tri.vrtx_a.y)) - ((tri.vrtx_b.y - tri.vrtx_a.y) * (i - tri.vrtx_a.x));
+   double areaB = ((tri.vrtx_a.x - tri.vrtx_c.x) * (j - tri.vrtx_c.y)) - ((tri.vrtx_a.y - tri.vrtx_c.y) * (i - tri.vrtx_c.x));
+   double gamma = areaC / tri.area;
+   double beta = areaB / tri.area;
+   double alpha = 1 - beta - gamma;
    
    if (alpha >= 0 && beta >= 0 && gamma >= 0 && alpha <= 1 && beta <= 1 && gamma <= 1) {
-      float d = computeZDepth(alpha * tri.vrtx_a.z + beta * tri.vrtx_b.z + gamma * tri.vrtx_c.z);
+      double d = computeZDepth(alpha * tri.vrtx_a.z + beta * tri.vrtx_b.z + gamma * tri.vrtx_c.z);
       
-      if (depth[i][j] < d && d <= 256) {
+      if (depth[i][j] < d && d <= 256.0) {
             depth[i][j] = d;
             
             return true;
@@ -179,7 +179,7 @@ bool rasterize(Triangle tri, int i, int j, float **depth) {
    return false;
 }
 
-color_t computeColor(int i, int j, int width, float **depth, int method) {
+color_t computeColor(int i, int j, int width, double **depth, int method) {
    color_t clr;
    clr.r = 0;
    clr.g = 0;
@@ -189,7 +189,7 @@ color_t computeColor(int i, int j, int width, float **depth, int method) {
       return clr;
    
    if (method == 2) {
-      clr.r = (i / (float) width);
+      clr.r = (i / (double) width);
       clr.g = 0;
       clr.b = 1 - clr.r;
    } else {
@@ -335,7 +335,7 @@ int main(int argc, const char* argv[]) {
 	}
 	
 	
-	float **depth = makeArray(width, height);
+	double **depth = makeArray(width, height);
 	for (int i = 0; i < width; ++i) {
 	   for (int j = 0; j < height; ++j) {
 	      depth[i][j] = -1 * std::numeric_limits<float>::infinity();

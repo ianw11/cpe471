@@ -1,0 +1,27 @@
+#version 120
+
+// Input vertex data, different for all executions of this shader.
+attribute vec3 vertexPosition_modelspace;
+
+
+// vertexColor was created in the cpp code, and the cpp has a handle to this
+attribute vec3 vertexColor;
+
+// fragmentColor gets passed along to SimpleFragmentShader
+// varying makes this a 'global' for the pipeline
+varying vec3 fragmentColor;
+
+uniform vec2 uWinScale;
+
+
+void main(){
+
+   // Actually setting the position
+	gl_Position = vec4(vertexPosition_modelspace.x * uWinScale.x, vertexPosition_modelspace.y * uWinScale.y, vertexPosition_modelspace.z, 1.0);
+   //gl_Position = vec4(vertexPosition_modelspace.x * uWinScale.x, vertexPosition_modelspace.y, vertexPosition_modelspace.z, 1.0);
+   
+   // Setting the color by passing it on to SimpleFragmentShader
+   fragmentColor = vertexColor;
+
+}
+

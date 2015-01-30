@@ -11,4 +11,8 @@ $ make clean
 
 
 
-As for program features, everything is working except the coloring of depth.  For some reason, black pixels are appearing in the bunny.  This does not show up when coloring by x.  This probably means there is something wrong with my depth buffer.
+As for program features, everything is working except the coloring of depth.  For some reason, black pixels are appearing in the bunny.
+This probably means there is something wrong with my depth buffer.  However, changing as many floats to doubles as possible helped a
+little bit.
+
+This does not show up when coloring by x.
