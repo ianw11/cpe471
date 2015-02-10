@@ -1,0 +1,6 @@
+Ian Washburne
+Program 2a
+
+The only comments I have for this program is that I never used the formula for implicit circles.  Instead, I just used distances and some radius to determine circle size.  The rundown is that I find the distance from the dot's starting position to the center of the screen.  If I subtract out the radius of the circle, this gives me the distance from the start position to the edge of the circle.  Then I consider this distance to be 1, so that if the point is between its start location and the radius, it will be < 1 and once it gets past this point the distance will be > 1.  If a point is > 1, it locks at distance 1.  To lock a point, arctan is necessary, which was the main red flag that I might be doing this silly.
+
+Anyway, the rest is more or less straight forward.  I do have a question about the transparency bit, specifically how does the blend function know which points to blend?

@@ -1,0 +1,12 @@
+Ian Washburne
+iwashbur@
+
+To build and run:
+
+$ make
+$ ./program2b
+
+
+Notes:
+
+I have no idea what is happening with the globe.  I think I can make the 'hole' move with the model, but there's a ton of other unknown happening.
