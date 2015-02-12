@@ -1,0 +1,2 @@
+/Users/Ian/Documents/Cal-Poly/cpe471/lab6/CMakeFiles/Lab6.dir
+/Users/Ian/Documents/Cal-Poly/cpe471/lab6/dependencies/glfw/src/CMakeFiles/glfw.dir
