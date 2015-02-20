@@ -49,6 +49,8 @@ GLint h_uShadeM;
 int numMaterials = 4;
 int forceNormals = 0;
 GLint h_forceNormals;
+GLint vbo;
+float x_angle = 0;
 
 /* helper function to make sure your matrix handle is correct */
 inline void safe_glUniformMatrix4fv(const GLint handle, const GLfloat data[]) {
@@ -104,7 +106,8 @@ void SetView() {
 void SetModel() {
   glm::mat4 Trans = glm::translate( glm::mat4(1.0f), g_trans);
   glm::mat4 RotateY = glm::rotate( glm::mat4(1.0f), g_angle, glm::vec3(0.0f, 1, 0));
-  glm::mat4 com = Trans*RotateY;
+  glm::mat4 RotateX = glm::rotate( glm::mat4(1.0f), x_angle, glm::vec3(1.0f, 0.0, 0.0));
+  glm::mat4 com = Trans*RotateY * RotateX;
   safe_glUniformMatrix4fv(h_uModelMatrix, glm::value_ptr(com));
 }
 
@@ -394,6 +397,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
       if (key == GLFW_KEY_N) {
          forceNormals = forceNormals == 0 ? 1 : 0;
       }
+      if (key == GLFW_KEY_W) {
+         x_angle += 10;
+      }
+      if (key == GLFW_KEY_S) {
+         x_angle -= 10;
+      }
    }
 }
 
@@ -444,6 +453,7 @@ int main(int argc, char **argv) {
 
    do {
       drawGL();
+      
       // Swap buffers
       glfwSwapBuffers(window);
       glfwPollEvents();
