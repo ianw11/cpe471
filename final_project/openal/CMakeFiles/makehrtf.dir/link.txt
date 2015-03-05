@@ -1,0 +1,1 @@
+/usr/bin/cc  -std=c99  -g -O2 -D_DEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/makehrtf.dir/utils/makehrtf.c.o  -o makehrtf  -lm 

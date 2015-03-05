@@ -1,0 +1,46 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/Ian/Documents/Cal-Poly/cpe471/final_project/openal/utils/openal-info.c
+stdio.h
+-
+string.h
+-
+AL/alc.h
+/Users/Ian/Documents/Cal-Poly/cpe471/final_project/openal/utils/AL/alc.h
+AL/al.h
+/Users/Ian/Documents/Cal-Poly/cpe471/final_project/openal/utils/AL/al.h
+AL/alext.h
+/Users/Ian/Documents/Cal-Poly/cpe471/final_project/openal/utils/AL/alext.h
+
+openal/include/AL/al.h
+
+openal/include/AL/alc.h
+
+openal/include/AL/alext.h
+stddef.h
+-
+inttypes.h
+-
+stdint.h
+-
+inttypes.h
+-
+alc.h
+openal/include/AL/alc.h
+al.h
+openal/include/AL/al.h
+efx.h
+openal/include/AL/efx.h
+
+openal/include/AL/efx.h
+alc.h
+openal/include/AL/alc.h
+al.h
+openal/include/AL/al.h
+

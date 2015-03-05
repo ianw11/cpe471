@@ -1,0 +1,19 @@
+Ian Washburne
+iwashbur@
+
+Controls:
+WASD - move around world
+M - Toggle material
+N - Toggle normal coloring
+IJKL - Rotate specific models (mostly the rabbits/patricks)
+Z - Toggle shading method
+Q - Move light source in POSITIVE x
+E - Move light source in NEGATIVE x
+
+The only part that I'm iffy about is my lighting.  I left in the controls to move the light source (which is the yellow cube) around so it can be observed.
+
+This program has it all!  A plane! At least 10 copies of 2 models (one obj and one hierarchical)!  Things within the scene moving!  The ability to move around the world!  Scrolling the mouse to change what the camera sees!  Lighting!
+
+There is also an image, as requested, of what my light should look like in the world.  I'm using a light source at the center of my world that radiates out.  The light source can be moved, as mentioned above.
+
+This should also use up my final late days.  Just wanted to mention it...

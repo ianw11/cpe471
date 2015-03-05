@@ -1,0 +1,1 @@
+/usr/bin/c++   -O2 -g -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/alsoft-config.dir/main.cpp.o CMakeFiles/alsoft-config.dir/mainwindow.cpp.o CMakeFiles/alsoft-config.dir/moc_mainwindow.cxx.o  -o ../../alsoft-config  /opt/local/lib/libQtGui.dylib /opt/local/lib/libQtCore.dylib 
