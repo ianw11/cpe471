@@ -23,10 +23,29 @@
 GLFWwindow* window;
 using namespace std;
 
+/******************
+To add a new mesh:
+
+1. Make a new vector<tinyobj::shape_t> shapes_*
+2. Make a new vector<tinyobj::material_t> materials_*
+3. Add 3 new handles posBufObj*, norBufObj*, indBufObj*
+4. Add a new function loadShapes*
+5. Add call to loadShapes* in main
+6. Update initGL
+7. Optional: Make a new function for drawGL()
+   7.1. Add in code to bind data
+   7.2. Then the code to unbind data
+
+******************/
+
 vector<tinyobj::shape_t> shapes;
 vector<tinyobj::shape_t> shapes_cube;
+vector<tinyobj::shape_t> shapes_r_forearm;
+vector<tinyobj::shape_t> shapes_l_forearm;
 vector<tinyobj::material_t> materials;       // Apparently not used
 vector<tinyobj::material_t> materials_cube;  // Apparently not used
+vector<tinyobj::material_t> materials_r_forearm; // Apparently not used
+vector<tinyobj::material_t> materials_l_forearm; // Apparently not used
 
 int g_width = 700; // 1024
 int g_height = 700; // 768
@@ -48,6 +67,17 @@ GLuint indBufObj = 0;
 GLuint posBufObjCube = 0;
 GLuint norBufObjCube = 0;
 GLuint indBufObjCube = 0;
+
+// Handles to arrays for right forearm obj data
+GLuint posBufObjRForearm = 0;
+GLuint norBufObjRForearm = 0;
+GLuint indBufObjRForearm = 0;
+
+// Handles to arrays for left forearm obj data
+GLuint posBufObjLForearm = 0;
+GLuint norBufObjLForearm = 0;
+GLuint indBufObjLForearm = 0;
+
 
 //Handles to the shader data
 GLint h_aPosition;
@@ -76,8 +106,8 @@ int robotDir = 0;
 
 RenderingHelper ModelTrans;
 
-int numMaterials = 9;
-enum Material {HEAD, FRAME, CYMBAL, ORANGE, SHINY_BLUE, FLAT_GREY, GOLD, TEAL, UNKNOWN};
+int numMaterials = 10;
+enum Material {HEAD, FRAME, CYMBAL, ORANGE, PINK, SHINY_BLUE, FLAT_GREY, GOLD, TEAL, UNKNOWN};
 #define rgb(X) ((X) / 255.0f)
 
 /* Variables for vibrating various parts of the drum set */
@@ -109,6 +139,14 @@ float ccRotate = 0.0f;
 int ccRotateOn = 0;
 int ccRotateC = 0;
 int ccRotateDir = 0;
+
+float rhLR = 0.0f;
+float rhUD = 0.0f;
+float rhExtend = 0.0f;
+
+float lhLR = 0.0f;
+float lhUD = 0.0f;
+float lhExtend = 0.0f;
 
 
 /* Audio */
@@ -175,6 +213,12 @@ void SetMaterial(int i) {
    case ORANGE:
       glUniform3f(h_uMatAmb, 0.02, 0.02, 0.1);
       glUniform3f(h_uMatDif, rgb(250), rgb(157), rgb(50));
+      glUniform3f(h_uMatSpec, 0.14, 0.14, 0.14);
+      glUniform1f(h_uMatShine, 10.0);
+      break;
+   case PINK:
+      glUniform3f(h_uMatAmb, 0.02, 0.02, 0.1);
+      glUniform3f(h_uMatDif, rgb(235), rgb(61), rgb(188));
       glUniform3f(h_uMatSpec, 0.14, 0.14, 0.14);
       glUniform1f(h_uMatShine, 10.0);
       break;
@@ -327,6 +371,22 @@ void loadShapesCube(const string &objFile) {
    resize_obj(shapes_cube);
 }
 
+void loadShapesRForearm(const string &objFile) {
+   string err = tinyobj::LoadObj(shapes_r_forearm, materials_r_forearm, objFile.c_str());
+	if(!err.empty()) {
+		cerr << err << endl;
+	}
+   resize_obj(shapes_r_forearm);
+}
+
+void loadShapesLForearm(const string &objFile) {
+   string err = tinyobj::LoadObj(shapes_l_forearm, materials_l_forearm, objFile.c_str());
+	if(!err.empty()) {
+		cerr << err << endl;
+	}
+   resize_obj(shapes_l_forearm);
+}
+
 
 vector<float> computeNormals(vector<tinyobj::shape_t> currArr) {
    vector<float> norBuf;
@@ -439,6 +499,61 @@ void initGL() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	GLSL::checkVersion();
 	assert(glGetError() == GL_NO_ERROR);
+	
+	
+	/* STEP 3 - RIGHT FOREARM */
+	
+	// Send the position array to the GPU
+	const vector<float> &posBufRForearm = shapes_r_forearm[0].mesh.positions;
+	glGenBuffers(1, &posBufObjRForearm);
+	glBindBuffer(GL_ARRAY_BUFFER, posBufObjRForearm);
+	glBufferData(GL_ARRAY_BUFFER, posBufRForearm.size()*sizeof(float), &posBufRForearm[0], GL_STATIC_DRAW);
+	
+	vector<float> normals = computeNormals(shapes_r_forearm);
+	
+	glGenBuffers(1, &norBufObjRForearm);
+	glBindBuffer(GL_ARRAY_BUFFER, norBufObjRForearm);
+	glBufferData(GL_ARRAY_BUFFER, normals.size()*sizeof(float), &normals[0], GL_STATIC_DRAW);
+	
+	// Send the index array to the GPU
+	const vector<unsigned int> &indBufRForearm = shapes_r_forearm[0].mesh.indices;
+	glGenBuffers(1, &indBufObjRForearm);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObjRForearm);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indBufRForearm.size()*sizeof(unsigned int), &indBufRForearm[0], GL_STATIC_DRAW);
+
+	// Unbind the arrays
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	GLSL::checkVersion();
+	assert(glGetError() == GL_NO_ERROR);
+	
+	
+	/* STEP 4 - LEFT FOREARM */
+	
+	// Send the position array to the GPU
+	const vector<float> &posBufLForearm = shapes_l_forearm[0].mesh.positions;
+	glGenBuffers(1, &posBufObjLForearm);
+	glBindBuffer(GL_ARRAY_BUFFER, posBufObjLForearm);
+	glBufferData(GL_ARRAY_BUFFER, posBufLForearm.size()*sizeof(float), &posBufLForearm[0], GL_STATIC_DRAW);
+	
+	vector<float> left_normals = computeNormals(shapes_l_forearm);
+	
+	glGenBuffers(1, &norBufObjLForearm);
+	glBindBuffer(GL_ARRAY_BUFFER, norBufObjLForearm);
+	glBufferData(GL_ARRAY_BUFFER, left_normals.size()*sizeof(float), &left_normals[0], GL_STATIC_DRAW);
+	
+	// Send the index array to the GPU
+	const vector<unsigned int> &indBufLForearm = shapes_l_forearm[0].mesh.indices;
+	glGenBuffers(1, &indBufObjLForearm);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObjLForearm);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indBufLForearm.size()*sizeof(unsigned int), &indBufLForearm[0], GL_STATIC_DRAW);
+
+	// Unbind the arrays
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	GLSL::checkVersion();
+	assert(glGetError() == GL_NO_ERROR);
+	
 	
 	//initialize the modeltrans matrix stack
    ModelTrans.useModelViewMatrix();
@@ -776,13 +891,18 @@ void updateQuivers() {
    
 }
 
-void doBunny() {
-   int nIndices;
-	
-	/* FIRST: CODE FOR BUNNY OBJECT */
 
-	// Enable and bind position array for drawing
-	GLSL::enableVertexAttribArray(h_aPosition);
+void disableBuffers() {
+   GLSL::disableVertexAttribArray(h_aPosition);
+	GLSL::disableVertexAttribArray(h_aNormal);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+int bindCylinder() {
+   int nIndices;
+   
+   GLSL::enableVertexAttribArray(h_aPosition);
 	glBindBuffer(GL_ARRAY_BUFFER, posBufObj);
 	glVertexAttribPointer(h_aPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	
@@ -795,6 +915,55 @@ void doBunny() {
    nIndices = (int)shapes[0].mesh.indices.size();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObj);
 	
+	return nIndices;
+}
+
+int bindRForearm() {
+   int nIndices;
+   
+   // Enable and bind position array for drawing
+	GLSL::enableVertexAttribArray(h_aPosition);
+	glBindBuffer(GL_ARRAY_BUFFER, posBufObjRForearm);
+	glVertexAttribPointer(h_aPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	
+	// Enable and bind normal array for drawing
+	GLSL::enableVertexAttribArray(h_aNormal);
+	glBindBuffer(GL_ARRAY_BUFFER, norBufObjRForearm);
+	glVertexAttribPointer(h_aNormal, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	
+	// Bind index array for drawing
+	nIndices = (int)shapes_r_forearm[0].mesh.indices.size();
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObjRForearm);
+	
+	return nIndices;
+}
+
+int bindLForearm() {
+   int nIndices;
+   
+   // Enable and bind position array for drawing
+	GLSL::enableVertexAttribArray(h_aPosition);
+	glBindBuffer(GL_ARRAY_BUFFER, posBufObjLForearm);
+	glVertexAttribPointer(h_aPosition, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	
+	// Enable and bind normal array for drawing
+	GLSL::enableVertexAttribArray(h_aNormal);
+	glBindBuffer(GL_ARRAY_BUFFER, norBufObjLForearm);
+	glVertexAttribPointer(h_aNormal, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	
+	// Bind index array for drawing
+	nIndices = (int)shapes_l_forearm[0].mesh.indices.size();
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObjLForearm);
+	
+	return nIndices;
+}
+
+
+void doBunny() {
+	/* FIRST: CODE FOR CYLINDER OBJECT */
+
+	// Enable and bind position array for drawing
+	int nIndices = bindCylinder();
 	
 	SetView();
 	
@@ -813,7 +982,7 @@ void doBunny() {
 	
 	/* Bass drum */
 	ModelTrans.translate(glm::vec3(0, 0, -3));
-	ModelTrans.rotate(worldRadius, glm::vec3(0, 1, 0));
+	//ModelTrans.rotate(worldRadius, glm::vec3(0, 1, 0));
    ModelTrans.pushMatrix(); // Frame
    ModelTrans.pushMatrix(); // Left stand
    ModelTrans.pushMatrix(); // Right stand
@@ -852,19 +1021,48 @@ void doBunny() {
 	// Pop for KICK PART
 	ModelTrans.popMatrix();
 	
-	   ModelTrans.translate(glm::vec3(0, -1.3, -.6));
-	   ModelTrans.rotate(bdBeaterAngle, glm::vec3(1, 0, 0));
-	   ModelTrans.translate(glm::vec3(0, 1, 0));
-	   ModelTrans.pushMatrix(); // Beater
+	   ModelTrans.translate(glm::vec3(0, -.2, -.65));
+	   ModelTrans.pushMatrix(); // Base
 	   
-	      ModelTrans.translate(glm::vec3(0, .2, 0));
-	      scaleCylinder(.2, .1, .2);
+	      // Base & Pedal
+	      ModelTrans.translate(glm::vec3(0, -.6, 0));
+	      ModelTrans.pushMatrix(); // Pedal
+	      
+	         // Pedal
+	         SetMaterial(TEAL);
+	         ModelTrans.translate(glm::vec3(0, .15, -.6));
+	         ModelTrans.rotate(-25 + 3 * bdBeaterAngle, glm::vec3(1, 0, 0));
+	         ModelTrans.translate(glm::vec3(0, 0, .2));
+	         scaleCylinder(.2, .01, .5);
+	         glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+            glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+            
+         // Pop for Base
+         SetMaterial(FRAME);
+         ModelTrans.popMatrix();
+         ModelTrans.translate(glm::vec3(0, .15, -.25));
+         scaleCylinder(.3, .01, .9);
+         glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+         glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+         
+         
+      // Pop for beater stick
+      ModelTrans.popMatrix();
+      ModelTrans.translate(glm::vec3(0, -.45, 0));
+      ModelTrans.rotate(3 * bdBeaterAngle, glm::vec3(1, 0, 0));
+      ModelTrans.translate(glm::vec3(0, .25, 0)); // Translate to pivot
+      ModelTrans.pushMatrix();
+      
+         // Beater Head
+         SetMaterial(GOLD);
+         ModelTrans.translate(glm::vec3(0, .2, 0));
+         scaleCylinder(.15, .2, .15);
 	      glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
 	      glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
-	   
-	   // Beater Stick   
-	   ModelTrans.popMatrix();
+      
+      ModelTrans.popMatrix();
 	   scaleCylinder(.1, .5, .1);
+	   SetMaterial(FRAME);
 	   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
 	   glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
 	   
@@ -910,6 +1108,7 @@ void doBunny() {
 	   ModelTrans.translate(glm::vec3(1.8, 0, -.8));
 	   ModelTrans.pushMatrix(); // Lower Cymbal
 	   ModelTrans.pushMatrix(); // Upper Cymbal
+	   ModelTrans.pushMatrix(); // Pedal Base
 	   
 	      // Upper Cymbal
 	      SetMaterial(CYMBAL);
@@ -944,6 +1143,30 @@ void doBunny() {
 	      
 	      ModelTrans.popMatrix();
 	      scaleCylinder(1, .02, 1);
+	      glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	      glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	      
+	   // Pop for Base
+	   ModelTrans.popMatrix();
+	   
+	      // Base and Pedal
+	      ModelTrans.translate(glm::vec3(-.13, -.7, -.1));
+	      ModelTrans.rotate(45, glm::vec3(0, 1, 0));
+	      ModelTrans.pushMatrix(); // Pedal
+	      
+	         // Pedal
+	         SetMaterial(TEAL);
+	         ModelTrans.translate(glm::vec3(0, .01, -.4));
+	         ModelTrans.rotate(-20 + (hhQuiverOn ? 20 : 0), glm::vec3(1, 0, -.5));
+	         ModelTrans.translate(glm::vec3(0, 0, .2));
+	         scaleCylinder(.3, .01, .5);
+	         glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	         glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	      
+	      // Base
+	      ModelTrans.popMatrix();
+	      SetMaterial(FRAME);
+	      scaleCylinder(.4, .01, 1.1);
 	      glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
 	      glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
 	   
@@ -1095,13 +1318,8 @@ void doBunny() {
 	/*********************/
 	
    // Disable and unbind
-   GLSL::disableVertexAttribArray(h_aPosition);
-	GLSL::disableVertexAttribArray(h_aNormal);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-   
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+   disableBuffers();
+	
 }
 	
 void doRobot() {
@@ -1122,13 +1340,6 @@ void doRobot() {
 	// Bind index array for drawing
 	nIndices = (int)shapes_cube[0].mesh.indices.size();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indBufObjCube);
-	
-	//SetView();
-	
-	//glUniform3f(h_uLightPos, g_light.x, g_light.y, g_light.z);
-   //glUniform1i(h_uShadeM, g_SM);
-   
-   //glUniform1i(h_forceNormals, forceNormals);
    
    /*********************/
    
@@ -1139,73 +1350,156 @@ void doRobot() {
    glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
 	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
    
-   /*
-   SetMaterial(3);
-   // PLANE
-   ModelTrans.loadIdentity();
-   ModelTrans.translate(glm::vec3(0, -1, 0));
-   ModelTrans.scale(50, .05, 50);
-   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
-	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
-   
-   SetMaterial(4);
-   // CUBE 1 - LIGHT
-	g_trans = g_light;
-	g_scale = glm::vec3(.2, .2, .2);
-	SetModel();
-	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
-	
-	SetMaterial(g_mat_id);
-	
-	// ROBOT 1
-	placeRobotAt(-4, 5, -6, 0, nIndices);
-	
-	// ROBOT 2
-	placeRobotAt(4, 5, -10, 45, nIndices);
-	
-	// ROBOT 3
-	placeRobotAt(15, 5, 8, 130, nIndices);
-	
-	// ROBOT 4
-	placeRobotAt(-25, 5, -25, 240, nIndices); // n,n
-	
-	// ROBOT 5
-	placeRobotAt(-30, 5, -25, 50, nIndices); // n,n
-	
-	// ROBOT 6
-	placeRobotAt(30, 5, -30, 0, nIndices); // p,n
-	
-	// ROBOT 7
-	placeRobotAt(30, 5, -25, 180, nIndices); // p,n
-	
-	
-	// ROBOT 8
-	placeRobotAt(30, 5, 30, 180, nIndices); // p,p
-	
-	// ROBOT 9
-	placeRobotAt(35, 5, 25, 325, nIndices); // p,p
-	
-	// ROBOT 10
-	placeRobotAt(25, 5, 25, 45, nIndices); // p,p
-	*/
    /*********************/
    
    // Disable and unbind
-   GLSL::disableVertexAttribArray(h_aPosition);
-	GLSL::disableVertexAttribArray(h_aNormal);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-   
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	
-	
-	glUseProgram(0);
-	assert(glGetError() == GL_NO_ERROR);
+   disableBuffers();
 	
 	updateRobotRadius();
 }
 
+void doForearms() {
+	/* THIRD: CODE FOR R FOREARM OBJECT */
+	
+	int nIndices;
+	
+	
+	// RIGHT ARM
+	
+	SetMaterial(TEAL);
+   ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(.12, 1.025, -4.055));
+   ModelTrans.rotate(90 + rhLR, vec3(0, 1, 0));
+   ModelTrans.rotate( rhUD - 90 , vec3(0, 0, 1));
+   ModelTrans.pushMatrix(); // Drumstick
+      
+      // Drumstick
+      nIndices = bindCylinder();
+      ModelTrans.translate(glm::vec3(-.8 - 1.5 * rhExtend, 0, 0));
+      ModelTrans.rotate(90, glm::vec3(0, 0, 1));
+      ModelTrans.rotate(2.5, glm::vec3(1, 0, 0));
+      ModelTrans.translate(glm::vec3(0, .3, 0));
+      ModelTrans.scale(.1, .4, .1);
+      glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	   glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	   disableBuffers();
+	   nIndices = bindRForearm();
+   
+   ModelTrans.popMatrix();
+   /*
+   x->y
+   */
+   ModelTrans.rotate(-90, glm::vec3(1, 0, 0));
+   ModelTrans.translate(glm::vec3(-.2, 0, 0));
+   ModelTrans.scale(.6 + rhExtend, .4, .6);
+   ModelTrans.translate(glm::vec3(-.6, 0, 0));
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	disableBuffers();
+	
+	
+	
+	// LEFT ARM
+	
+	nIndices = bindLForearm();
+	
+	ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(1.4, 1.025, -4.055));
+   ModelTrans.rotate(90 + lhLR, vec3(0, 1, 0));
+   ModelTrans.rotate( lhUD - 90 , vec3(0, 0, 1));
+   ModelTrans.pushMatrix(); // Drumstick
+      
+      // Drumstick
+      nIndices = bindCylinder();
+      ModelTrans.translate(glm::vec3(-.8 - 1.5 * lhExtend, 0, 0));
+      ModelTrans.rotate(90, glm::vec3(0, 0, 1));
+      ModelTrans.rotate(2.5, glm::vec3(1, 0, 0));
+      ModelTrans.translate(glm::vec3(0, .3, 0));
+      ModelTrans.scale(.1, .4, .1);
+      glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	   glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	   disableBuffers();
+	   nIndices = bindLForearm();
+   
+   ModelTrans.popMatrix();
+   /*
+   x->y
+   z->x
+   y->z
+   */
+   ModelTrans.rotate(180, glm::vec3(0, 0, 1));
+   ModelTrans.rotate(90, glm::vec3(1, 0, 0));
+   ModelTrans.translate(glm::vec3(-.2, 0, 0));
+   ModelTrans.scale(.6 + lhExtend, .4, .6);
+   ModelTrans.translate(glm::vec3(1.2, 0, 0));
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	
+	// Disable and unbind
+   disableBuffers();
+   
+}
+
+void doWalls() {
+
+   int nIndices;
+   
+   nIndices = bindCylinder();
+   
+   SetMaterial(PINK);
+   
+   
+   // POS Z
+   ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(0, 0, 5));
+   ModelTrans.rotate(90, glm::vec3(1, 0, 0));
+   ModelTrans.scale(100, .1, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+   
+   // NEG Z
+   ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(0, 0, -15));
+   ModelTrans.rotate(90, glm::vec3(1, 0, 0));
+   ModelTrans.scale(100, .1, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	// POS X
+	ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(10, 0, 0));
+   ModelTrans.rotate(90, glm::vec3(0, 0, 1));
+   ModelTrans.scale(100, .1, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	// NEG X
+	ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(-10, 0, 0));
+   ModelTrans.rotate(90, glm::vec3(0, 0, 1));
+   ModelTrans.scale(100, .1, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	// POS Y
+	ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(0, 10, 0));
+   ModelTrans.scale(100, .1, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+	
+	// NEG Y
+	ModelTrans.loadIdentity();
+   ModelTrans.translate(glm::vec3(0, -1.1, 0));
+   ModelTrans.scale(100, .01, 100);
+   glUniformMatrix4fv(h_uModelMatrix, 1, GL_FALSE, glm::value_ptr(ModelTrans.modelViewMatrix));
+	glDrawElements(GL_TRIANGLES, nIndices, GL_UNSIGNED_INT, 0);
+   
+   disableBuffers();
+
+}
 
 
 void drawGL() {
@@ -1223,6 +1517,13 @@ void drawGL() {
    
    doRobot();
    
+   doForearms();
+   
+   doWalls();
+   
+   glUseProgram(0);
+	assert(glGetError() == GL_NO_ERROR);
+   
    if (doRotate)
       worldRadius += 1;
       
@@ -1231,6 +1532,9 @@ void drawGL() {
 	}
 	
 }
+
+
+
 
 void prepareAudio() {
    alGetError();
@@ -1510,6 +1814,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
       if (key == GLFW_KEY_F) {
          sdHeadQuiverOn = 1;
          playSound(SNARE_DRUM);
+         
+         lhUD = 120;
+         lhLR = -10;
       }
       
       if (key == GLFW_KEY_H) {
@@ -1522,18 +1829,35 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             playSound(OPEN_HIGH_HAT);
             
          hhRotateOn = 1;
+         
+         rhUD = 90 + (hhQuiverOn ? 0 : -3);
+         rhLR = 75;
       }
       if (key == GLFW_KEY_U) {
          playSound(HIGH_TOM);
          htQuiverOn = 1;
+         
+         rhUD = 80;
+         rhLR = 25;
+         
+         rhExtend = -.2;
       }
       if (key == GLFW_KEY_I) {
          playSound(LOW_TOM);
          ltQuiverOn = 1;
+         
+         rhExtend = -.2;
+         
+         rhUD = 125;
+         rhLR = -90;
       }
       if (key == GLFW_KEY_G) {
          playSound(CRASH_CYMBAL);
          ccRotateOn = 1;
+         
+         rhUD = 88;
+         rhLR = 50;
+         rhExtend = .35;
       }
       
       
@@ -1554,24 +1878,42 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
       
       if (key == GLFW_KEY_SPACE)
          bdHeadQuiverOn = 0;
-         
-      if (key == GLFW_KEY_F)
+      if (key == GLFW_KEY_F) {
          sdHeadQuiverOn = 0;
          
-      if (key == GLFW_KEY_J)
+         lhUD = 0;
+         lhLR = 0;
+      }
+      if (key == GLFW_KEY_J) {
          hhRotateOn = 0;
-         
+         rhLR = 0;
+         rhUD = 0;
+      }
       if (key == GLFW_KEY_P)
          doRotate = 1;
-      
-      if (key == GLFW_KEY_U)
+      if (key == GLFW_KEY_U) {
          htQuiverOn = 0;
-      
-      if (key == GLFW_KEY_I)
+         
+         rhExtend = 0;
+         
+         rhLR = 0;
+         rhUD = 0;
+      }
+      if (key == GLFW_KEY_I) {
          ltQuiverOn = 0;
-      
-      if (key == GLFW_KEY_G)
+         
+         rhExtend = 0;
+         
+         rhUD = 0;
+         rhLR = 0;
+      }
+      if (key == GLFW_KEY_G) {
          ccRotateOn = 0;
+         
+         rhUD = 0;
+         rhLR = 0;
+         rhExtend = 0;
+      }
       
    }
 }
@@ -1604,7 +1946,7 @@ int main(int argc, char **argv) {
    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
    // Open a window and create its OpenGL context
-   window = glfwCreateWindow( g_width, g_height, "Program 4", NULL, NULL);
+   window = glfwCreateWindow( g_width, g_height, "Final Project", NULL, NULL);
    if( window == NULL ) {
       fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
       glfwTerminate();
@@ -1627,8 +1969,9 @@ int main(int argc, char **argv) {
    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
    
 	loadShapes("cylinder.obj");
-	loadShapesCube("robot/intact_robot.obj");
-	//loadShapes("sphere.obj");
+	loadShapesCube("robot_obj/robot_fore_arms.obj");
+	loadShapesRForearm("robot_obj/right_lower_arm.obj");
+	loadShapesLForearm("robot_obj/left_lower_arm.obj");
 	
    initGL();
    installShaders("vert.glsl", "frag.glsl");
